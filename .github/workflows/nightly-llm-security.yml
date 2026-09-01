@@ -1,7 +1,7 @@
 name: Nightly LLM Security
 on:
-  schedule:
-    - cron: "53 5 * * *"
+  # schedule: # disabled — automated runs turned off
+    # - cron: "53 5 * * *"
   workflow_dispatch:
 
 permissions:

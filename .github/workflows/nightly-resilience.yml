@@ -1,7 +1,7 @@
 name: Nightly Resilience
 on:
-  schedule:
-    - cron: "41 4 * * *"
+  # schedule: # disabled — automated runs turned off
+    # - cron: "41 4 * * *"
   workflow_dispatch:
 
 permissions:
