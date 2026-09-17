@@ -187,6 +187,13 @@ jobs:
             echo "_Ratchet drift (eslint warnings / cognitive-complexity / file-size) listed above is expected mid-cycle and is rebaselined at release — it is NOT a contributor concern and did not, on its own, open this issue._"
           } > issue-body.md
 
+          HAS_ISSUES=$(gh repo view "$GITHUB_REPOSITORY" --json hasIssuesEnabled \
+            --jq '.hasIssuesEnabled' 2>/dev/null || echo "unknown")
+          if [ "$HAS_ISSUES" = "false" ]; then
+            echo "::warning::Repository issues are disabled; skipping base-red tracking issue update."
+            exit 0
+          fi
+
           EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
             --search "in:title $TITLE" --json number --jq '.[0].number' 2>/dev/null || echo "")
           if [ -n "$EXISTING" ]; then
@@ -284,6 +291,13 @@ jobs:
             echo ""
             echo "_Ratchet drift (eslint warnings / cognitive-complexity / file-size) is expected mid-cycle and did NOT, on its own, open this issue._"
           } > issue-body.md
+
+          HAS_ISSUES=$(gh repo view "$GITHUB_REPOSITORY" --json hasIssuesEnabled \
+            --jq '.hasIssuesEnabled' 2>/dev/null || echo "unknown")
+          if [ "$HAS_ISSUES" = "false" ]; then
+            echo "::warning::Repository issues are disabled; skipping base-red tracking issue update."
+            exit 0
+          fi
 
           EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
             --search "in:title $TITLE" --json number --jq '.[0].number' 2>/dev/null || echo "")
