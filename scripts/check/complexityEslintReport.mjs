@@ -5,6 +5,7 @@
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -14,12 +15,7 @@ const CONFIG_PATH = path.join(ROOT, "eslint.complexity-ratchets.config.mjs");
 /** Positional dirs — must match config `files` scopes (see check-complexity tests). */
 export const ESLINT_SCAN_DIRS = ["src", "open-sse", "electron", "bin"];
 
-const ESLINT_BIN = path.join(
-  ROOT,
-  "node_modules",
-  ".bin",
-  process.platform === "win32" ? "eslint.cmd" : "eslint"
-);
+const requireFromRoot = createRequire(path.join(ROOT, "package.json"));
 
 /** Args after the eslint binary (tests lock scan dirs on this array). */
 export const ESLINT_ARGS = [
@@ -33,6 +29,33 @@ export const ESLINT_ARGS = [
   ".eslintcache-complexity",
   ...ESLINT_SCAN_DIRS,
 ];
+
+export function resolveEslintInvocation(root = ROOT) {
+  const localBin = path.join(
+    root,
+    "node_modules",
+    ".bin",
+    process.platform === "win32" ? "eslint.cmd" : "eslint"
+  );
+  if (fs.existsSync(localBin)) {
+    return { command: localBin, args: ESLINT_ARGS, shell: process.platform === "win32" };
+  }
+
+  const rootRequire =
+    root === ROOT ? requireFromRoot : createRequire(path.join(root, "package.json"));
+  const eslintPackageJson = rootRequire.resolve("eslint/package.json");
+  const eslintPackage = JSON.parse(fs.readFileSync(eslintPackageJson, "utf8"));
+  const eslintBin =
+    typeof eslintPackage.bin === "string" ? eslintPackage.bin : eslintPackage.bin?.eslint;
+  if (!eslintBin) {
+    throw new Error(`Unable to resolve ESLint bin from ${eslintPackageJson}`);
+  }
+  return {
+    command: process.execPath,
+    args: [path.resolve(path.dirname(eslintPackageJson), eslintBin), ...ESLINT_ARGS],
+    shell: false,
+  };
+}
 
 const COMPLEXITY_RULES = new Set(["complexity", "max-lines-per-function"]);
 
@@ -77,12 +100,12 @@ export function getComplexityEslintReport() {
 
   let stdout;
   try {
-    // Prefer local bin (Windows-safe); shell only needed for .cmd shims.
-    stdout = execFileSync(ESLINT_BIN, ESLINT_ARGS, {
+    const invocation = resolveEslintInvocation();
+    stdout = execFileSync(invocation.command, invocation.args, {
       cwd: ROOT,
       encoding: "utf8",
       maxBuffer: 64 * 1024 * 1024,
-      shell: process.platform === "win32",
+      shell: invocation.shell,
     });
   } catch (err) {
     stdout = err.stdout ? String(err.stdout) : "";
